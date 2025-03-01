@@ -1,0 +1,98 @@
+services:
+  - type: web
+    name: ai-fashion-stylist-api
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: COS_SECRET_ID
+        sync: false
+      - key: COS_SECRET_KEY
+        sync: false
+      - key: COS_BUCKET
+        sync: false
+      - key: COS_REGION
+        sync: false
+      - key: GLM_API_KEY
+        sync: false
+      - key: COGVIEW_API_KEY
+        sync: false
+      - key: ALIAI_API_KEY
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+  - type: web
+    name: ai-fashion-stylist-web
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run preview
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        value: https://ai-fashion-stylist-api.onrender.com
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+services:
+  - type: web
+    name: ai-fashion-stylist-api
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: COS_SECRET_ID
+        sync: false
+      - key: COS_SECRET_KEY
+        sync: false
+      - key: COS_BUCKET
+        sync: false
+      - key: COS_REGION
+        sync: false
+      - key: GLM_API_KEY
+        sync: false
+      - key: COGVIEW_API_KEY
+        sync: false
+      - key: ALIAI_API_KEY
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+  - type: web
+    name: ai-fashion-stylist-web
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run preview
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        value: https://ai-fashion-stylist-api.onrender.com
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
