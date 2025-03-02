@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
 
   return {
+    base: '/',
     plugins: [react()],
     optimizeDeps: {
       exclude: ['lucide-react'],
@@ -22,7 +23,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: !apiUrl.startsWith('http://localhost'),
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
+          rewrite: (path) => path.replace(/^/api/, ''),
           headers: {
             'X-Forwarded-For': req => req.headers['x-forwarded-for'] || req.ip
           },
@@ -63,7 +64,10 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules')) {
               return id.toString().split('node_modules/')[1].split('/')[0]
             }
-          }
+          },
+          assetFileNames: 'assets/[name].[hash].[ext]',
+          chunkFileNames: 'assets/[name].[hash].js',
+          entryFileNames: 'assets/[name].[hash].js'
         }
       }
     }
