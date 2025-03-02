@@ -10,8 +10,7 @@ export default defineConfig(({ mode }) => {
     base: '/',
     plugins: [react()],
     optimizeDeps: {
-      exclude: ['lucide-react'],
-      include: ['react-router-dom']
+      exclude: ['lucide-react']
     },
     server: {
       port: 5173,
@@ -24,17 +23,14 @@ export default defineConfig(({ mode }) => {
           secure: !apiUrl.startsWith('http://localhost'),
           ws: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
-          headers: {
-            'X-Forwarded-For': req => req.headers['x-forwarded-for'] || req.ip
-          },
           configure: (proxy) => {
-            proxy.on('error', (err, _req, _res) => {
+            proxy.on('error', (err) => {
               console.error('代理服务器错误:', err);
             });
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
               console.log(`发送请求: ${req.method} ${req.url}`);
             });
-            proxy.on('proxyRes', (proxyRes, req, _res) => {
+            proxy.on('proxyRes', (proxyRes, req) => {
               console.log(`收到响应: ${proxyRes.statusCode} ${req.url}`);
             });
           }
@@ -62,7 +58,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              return id.toString().split('node_modules/')[1].split('/')[0]
+              return id.toString().split('node_modules/')[1].split('/')[0];
             }
           },
           assetFileNames: 'assets/[name].[hash].[ext]',
@@ -71,5 +67,5 @@ export default defineConfig(({ mode }) => {
         }
       }
     }
-  }
-})
+  };
+});
