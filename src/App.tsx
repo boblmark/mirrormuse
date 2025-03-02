@@ -5,7 +5,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 // 健康检查函数
 const checkBackendHealth = async () => {
   try {
-    const response = await fetch('/api/health');
+    const response = await fetch('https://mirrormuse.onrender.com/api/health');
     if (!response.ok) {
       throw new Error('后端服务不可用');
     }
@@ -358,20 +358,17 @@ function App() {
                 }
                 formDataToSend.append(key, value);
             });
-    
-            const apiUrl = import.meta.env.VITE_API_URL || '';
-            const baseUrl = apiUrl || window.location.origin;
-            const fullUrl = `${baseUrl}/api/generate-clothing`;
-    
-            // 开始上传文件
-            updateProgress('UPLOAD');
-            const response = await fetch(fullUrl, {
-                method: 'POST',
-                body: formDataToSend,
-                signal: abortControllerRef.current.signal,
-                credentials: 'include',
-                mode: 'cors'
-            });
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://mirrormuse.onrender.com';
+    const fullUrl = `${apiUrl}/api/generate-clothing`;
+    // 开始上传文件
+    updateProgress('UPLOAD');
+    const response = await fetch(fullUrl, {
+        method: 'POST',
+        body: formDataToSend,
+        signal: abortControllerRef.current.signal,
+        credentials: 'include',
+        mode: 'cors'
+    });
     
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
