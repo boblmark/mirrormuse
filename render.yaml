@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ai-fashion-stylist-api
+    name: mirrormuse-api
     env: node
     region: singapore
     plan: free
@@ -29,7 +29,7 @@ services:
     autoDeploy: true
 
   - type: web
-    name: ai-fashion-stylist-web
+    name: mirrormuse-web
     env: node
     region: singapore
     plan: free
@@ -39,7 +39,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: VITE_API_URL
-        value: https://ai-fashion-stylist-api.onrender.com
+        value: https://mirrormuse-api.onrender.com
     headers:
       - path: /*
         name: Cache-Control
@@ -49,7 +49,7 @@ services:
         value: public, max-age=31536000, immutable
 services:
   - type: web
-    name: ai-fashion-stylist-api
+    name: mirrormuse-api
     env: node
     region: singapore
     plan: free
@@ -78,7 +78,7 @@ services:
     autoDeploy: true
 
   - type: web
-    name: ai-fashion-stylist-web
+    name: mirrormuse-web
     env: node
     region: singapore
     plan: free
@@ -88,7 +88,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: VITE_API_URL
-        value: https://ai-fashion-stylist-api.onrender.com
+        value: https://mirrormuse-api.onrender.com
     headers:
       - path: /*
         name: Cache-Control
