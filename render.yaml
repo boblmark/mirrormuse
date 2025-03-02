@@ -39,7 +39,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: VITE_API_URL
-        value: https://mirrormuse-api.onrender.com
+        value: https://mirrormuse.onrender.com/
     headers:
       - path: /*
         name: Cache-Control
@@ -88,7 +88,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: VITE_API_URL
-        value: https://mirrormuse-api.onrender.com
+        value: https://mirrormuse.onrender.com/
     headers:
       - path: /*
         name: Cache-Control
