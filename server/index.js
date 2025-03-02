@@ -100,7 +100,7 @@ async function callGLMForAnalysis(imageUrl, measurements) {
   try {
     const prompt = `分析用户的身体，皮肤特征，脸型和发型以及性别，基于以下身体数据推荐适合的上衣和下衣：身高 ${measurements.height}cm，体重 ${measurements.weight}kg，胸围 ${measurements.bust}cm，腰围 ${measurements.waist}cm，臀围 ${measurements.hips}cm。`;
     
-    const response = await axios.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    const response = await axiosWithRetry.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       model: 'glm-4v-plus',
       messages: [{
         role: 'user',
@@ -165,7 +165,7 @@ async function callGLMForCommentary(imageUrl) {
 
 请确保评价专业、具体、有建设性，并突出亮点。`;
     
-    const response = await axios.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    const response = await axiosWithRetry.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       model: 'glm-4v-plus',
       messages: [{
         role: 'user',
@@ -296,16 +296,6 @@ function extractScore(commentary) {
 const apiRouter = express.Router();
 
 // Generate clothing recommendations route
-apiRouter.get('/generate-clothing', (req, res) => {
-  res.json({
-    message: 'Please use POST method for generating clothing recommendations',
-    required_fields: {
-      files: ['person_photo', 'custom_top_garment', 'custom_bottom_garment'],
-      measurements: ['height', 'weight', 'bust', 'waist', 'hips', 'style_preference']
-    }
-  });
-});
-
 apiRouter.post('/generate-clothing', (req, res) => {
   upload(req, res, async (err) => {
     try {
