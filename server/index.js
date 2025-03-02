@@ -15,9 +15,10 @@ const port = process.env.PORT || 3000;
 // 配置CORS策略
 app.use(cors({
   origin: [
+    'http://localhost:3000', // Local development server
+    'http://localhost:3001', // Alternative local port
     'https://mirrormuse-web.onrender.com', // Production frontend
-    'http://localhost:5173', // Local development frontend
-    'https://mirrormuse.onrender.com' // Backend URL
+    'http://localhost:5173' // Local development frontend
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -298,6 +299,45 @@ function extractScore(commentary) {
 const apiRouter = express.Router();
 
 // Generate clothing recommendations route
+apiRouter.get('/generate-clothing', (req, res) => {
+  res.json({
+    message: 'Welcome to the AI Fashion Stylist API',
+    endpoint: '/api/generate-clothing',
+    method: 'POST',
+    description: '生成个性化服装搭配和虚拟试穿结果',
+    required_files: {
+      person_photo: '用户全身照片',
+      custom_top_garment: '自定义上衣图片',
+      custom_bottom_garment: '自定义下装图片'
+    },
+    required_measurements: {
+      height: '身高(cm)',
+      weight: '体重(kg)',
+      bust: '胸围(cm)',
+      waist: '腰围(cm)',
+      hips: '臀围(cm)',
+      style_preference: '风格偏好'
+    },
+    response_format: {
+      recommendations: '基于身材特征的穿搭建议',
+      custom: {
+        topUrl: '自定义上衣图片URL',
+        bottomUrl: '自定义下装图片URL',
+        tryOnUrl: '自定义搭配虚拟试穿结果URL',
+        commentary: '专业造型点评',
+        score: '搭配评分(1-10)'
+      },
+      generated: {
+        topUrl: 'AI生成的上衣图片URL',
+        bottomUrl: 'AI生成的下装图片URL',
+        tryOnUrl: 'AI生成搭配虚拟试穿结果URL',
+        commentary: '专业造型点评',
+        score: '搭配评分(1-10)'
+      }
+    }
+  });
+});
+
 apiRouter.post('/generate-clothing', (req, res) => {
   upload(req, res, async (err) => {
     try {
