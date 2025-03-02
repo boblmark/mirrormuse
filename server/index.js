@@ -15,7 +15,8 @@ const port = process.env.PORT || 3000;
 // 配置CORS策略
 app.use(cors({
   origin: [
-    'https://ai-fashion-stylist-web.onrender.com' // Correct origin for the frontend
+    'https://ai-fashion-stylist-web.onrender.com', // Production frontend
+    'http://localhost:5173' // Local development frontend
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -84,7 +85,7 @@ async function uploadToCOS(file, folder = '') {
         reject(new Error('Failed to upload file to COS'));
         return;
       }
-      const fileUrl = `https://${bucket}.cos.${region}.myqcloud.com/${fileName}`;
+      const fileUrl = `https://${bucket}.cos.${region}.myqcloud.com/${encodeURIComponent(fileName)}`;
       resolve(fileUrl);
     });
   });

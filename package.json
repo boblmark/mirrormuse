@@ -7,7 +7,9 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "node --max-old-space-size=16384 ./node_modules/vite/bin/vite.js",
+    "dev:backend": "node server/index.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -15,34 +17,34 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@tailwindcss/forms": "^0.5.7",
     "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.18",
+    "axios": "^1.6.7",
+    "cors": "^2.8.5",
+    "cos-nodejs-sdk-v5": "^2.13.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
     "lucide-react": "^0.344.0",
+    "multer": "^1.4.5-lts.1",
+    "postcss": "^8.4.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "express": "^4.18.3",
-    "cors": "^2.8.5",
-    "multer": "^1.4.5-lts.1",
-    "dotenv": "^16.4.5",
-    "axios": "^1.6.7",
-    "cos-nodejs-sdk-v5": "^2.13.3",
-    "uuid": "^9.0.1",
-    "vite": "^5.4.8",
-    "@tailwindcss/forms": "^0.5.7",
-    "autoprefixer": "^10.4.18",
-    "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "terser": "^5.29.2"
+    "terser": "^5.29.2",
+    "uuid": "^9.0.1",
+    "vite": "^6.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "concurrently": "^8.2.2",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.9.0",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^8.3.0",
-    "concurrently": "^8.2.2"
+    "typescript-eslint": "^8.3.0"
   }
 }

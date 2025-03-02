@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef } from 'react';
 import { 
     Upload, 
@@ -19,38 +20,6 @@ import {
 import FashionBackground from './components/FashionBackground';
 
 // 补充类型定义
-type ProgressStage = 'UPLOAD' | 'ANALYSIS' | 'GENERATE_TOP' | 'GENERATE_BOTTOM' | 'TRYON_CUSTOM' | 'TRYON_GENERATED' | 'COMMENTARY' | 'HAIRSTYLE' | 'COMPLETE';
-
-interface Result {
-    custom: {
-        topUrl: string;
-        bottomUrl: string;
-        tryOnUrl: string;
-        commentary: string;
-        score: number;
-    };
-    generated: {
-        topUrl: string;
-        bottomUrl: string;
-        tryOnUrl: string;
-        commentary: string;
-        score: number;
-    };
-}
-
-interface HairStyles {
-    custom: Array<{
-        hairstyle: string;
-        reasons: string;
-        img: string;
-    }>;
-    generated: Array<{
-        hairstyle: string;
-        reasons: string;
-        img: string;
-    }>;
-}
-
 // 在文件顶部统一类型定义
 interface UploadPreview {
     file: File;
@@ -98,14 +67,17 @@ interface ProgressState {
 }
 
 const PROGRESS_STAGES = {
-    UPLOAD: { percent: 10, en: 'Uploading files...', zh: '正在上传文件...' },
-    ANALYSIS: { percent: 20, en: 'Analyzing...', zh: '正在分析...' },
-    GENERATE_TOP: { percent: 35, en: 'Generating top...', zh: '正在生成上衣...' },
-    GENERATE_BOTTOM: { percent: 50, en: 'Generating bottom...', zh: '正在生成下装...' },
-    TRYON_CUSTOM: { percent: 65, en: 'Trying on custom outfit...', zh: '正在试穿自选搭配...' },
-    TRYON_GENERATED: { percent: 80, en: 'Trying on AI-generated outfit...', zh: '正在试穿AI推荐搭配...' },
-    COMMENTARY: { percent: 90, en: 'Generating commentary...', zh: '正在生成点评...' },
-    HAIRSTYLE: { percent: 95, en: 'Generating hairstyle recommendations...', zh: '正在生成发型推荐...' },
+    UPLOAD: { percent: 5, en: 'Uploading files...', zh: '正在上传文件...' },
+    ANALYSIS: { percent: 15, en: 'Analyzing...', zh: '正在分析图片...' },
+    GENERATE_TOP: { percent: 25, en: 'Generating top...', zh: '正在生成上衣...' },
+    GENERATE_BOTTOM: { percent: 35, en: 'Generating bottom...', zh: '正在生成下装...' },
+    TRYON_CUSTOM: { percent: 45, en: 'Trying on custom outfit...', zh: '正在试穿自选搭配...' },
+    TRYON_GENERATED: { percent: 55, en: 'Trying on AI-generated outfit...', zh: '正在试穿AI推荐搭配...' },
+    COMMENTARY: { percent: 65, en: 'Generating commentary...', zh: '正在生成点评...' },
+    HAIRSTYLE_ANALYSIS: { percent: 75, en: 'Analyzing hairstyle...', zh: '正在分析发型...' },
+    HAIRSTYLE_GENERATION: { percent: 85, en: 'Generating hairstyle recommendations...', zh: '正在生成发型推荐...' },
+    HAIRSTYLE_CUSTOM: { percent: 90, en: 'Applying custom hairstyles...', zh: '正在应用自选发型...' },
+    HAIRSTYLE_GENERATED: { percent: 95, en: 'Applying AI-generated hairstyles...', zh: '正在应用AI推荐发型...' },
     COMPLETE: { percent: 100, en: 'Complete!', zh: '完成！' }
 };
 
@@ -239,12 +211,6 @@ const lucideIcons = {
   Wand,
   Crown
 };
-// ... existing code ...
-
-// 在组件外部定义并发控制相关的变量
-const MAX_CONCURRENT_REQUESTS = 4;
-let activeRequests = 0;
-const requestQueue: (() => void)[] = [];
 
 function App() {
     const [personPhoto, setPersonPhoto] = useState<UploadPreview | null>(null);
@@ -350,40 +316,30 @@ function App() {
                 personPhoto: !!personPhoto, 
                 topGarment: !!topGarment, 
                 bottomGarment: !!bottomGarment 
-            }); // 添加日志
+            });
             showError(t.error.upload[language]);
             return;
         }
-
-        // Cancel any existing request
+    
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-
-        // Create new AbortController for this request
+    
         abortControllerRef.current = new AbortController();
-
+    
         setLoading(true);
         updateProgress('UPLOAD');
-
+    
         try {
+            // 处理服装搭配请求
             const formDataToSend = new FormData();
             formDataToSend.append('person_photo', personPhoto.file);
             formDataToSend.append('custom_top_garment', topGarment.file);
             formDataToSend.append('custom_bottom_garment', bottomGarment.file);
     
-            console.log('表单数据:', {
-                height: formData.height,
-                weight: formData.weight,
-                bust: formData.bust,
-                waist: formData.waist,
-                hips: formData.hips,
-                style_preference: formData.style_preference
-            }); // 添加日志
-    
             Object.entries(formData).forEach(([key, value]) => {
                 if (!value) {
-                    console.log('缺少必要的表单字段:', key); // 添加日志
+                    console.log('缺少必要的表单字段:', key);
                     throw new Error('All measurements are required');
                 }
                 formDataToSend.append(key, value);
@@ -393,13 +349,8 @@ function App() {
             const baseUrl = apiUrl || window.location.origin;
             const fullUrl = `${baseUrl}/api/generate-clothing`;
     
-            console.log('发送请求到:', fullUrl); // 添加日志
-            console.log('请求配置:', {
-                method: 'POST',
-                credentials: 'include',
-                mode: 'cors'
-            }); // 添加日志
-    
+            // 开始上传文件
+            updateProgress('UPLOAD');
             const response = await fetch(fullUrl, {
                 method: 'POST',
                 body: formDataToSend,
@@ -412,149 +363,246 @@ function App() {
                 const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
                 throw new Error(errorData.error || `Server error: ${response.status}`);
             }
-
+    
+            // 开始分析图片
+            updateProgress('ANALYSIS');
             const data = await response.json();
             console.log('Received response:', data);
-
-            const stages: ProgressStage[] = [
-                'UPLOAD',
-                'ANALYSIS',
-                'GENERATE_TOP',
-                'GENERATE_BOTTOM',
-                'TRYON_CUSTOM',
-                'TRYON_GENERATED',
-                'COMMENTARY',
-                'HAIRSTYLE',
-                'COMPLETE'
-            ];
-
-            for (const stage of stages) {
-                if (abortControllerRef.current?.signal.aborted) {
-                    throw new Error('Request cancelled');
-                }
-                updateProgress(stage);
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-
+    
+            // 生成上衣
+            updateProgress('GENERATE_TOP');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+    
+            // 生成下装
+            updateProgress('GENERATE_BOTTOM');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+    
+            // 开始自选搭配虚拟换衣
+            updateProgress('TRYON_CUSTOM');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+    
+            // 开始AI推荐搭配虚拟换衣
+            updateProgress('TRYON_GENERATED');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+    
+            // 生成造型点评
+            updateProgress('COMMENTARY');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+    
             setResult(data);
 
-            // 直接使用生成的换衣效果图片URL进行虚拟换发
-            const handleHairstyleRecommendation = async (image: string) => {
+            // 处理发型推荐
+            try {
+                // 开始发型分析
                 updateProgress('HAIRSTYLE_ANALYSIS');
                 
-                try {
-                    // 发送发型分析请求
-                    const response = await fetch('https://api.coze.cn/v1/workflow/run', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer pat_XCdzRC2c6K7oMcc2xVJv37KYJR311nrU8uUCPbdnAPlWKaDY9TikL2W8nnkW9cbY',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
+                // 验证虚拟换衣结果是否存在
+                if (!data || !data.custom || !data.custom.tryOnUrl || !data.generated || !data.generated.tryOnUrl) {
+                    throw new Error('Virtual try-on results not available');
+                }
+                
+                // 添加重试机制
+                const maxRetries = 3;
+                const delay = 2000; // 2秒延时
+                
+                // 处理单个发型推荐请求
+                const getHairstyleRecommendation = async (imageUrl) => {
+                    try {
+                        console.log('开始发型推荐请求，输入图片URL:', imageUrl);
+                        // 确保图片URL有效
+                        if (!imageUrl || typeof imageUrl !== 'string') {
+                            console.error('无效的图片URL:', imageUrl);
+                            throw new Error('Invalid image URL');
+                        }
+                
+                        // 简化请求参数，只发送必要的数据
+                        const requestPayload = {
                             workflow_id: '7472218638747467817',
                             parameters: {
-                                input_image: image
+                                input_image: imageUrl.trim()
                             }
-                        })
-                    });
-    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-    
-                    const responseData = await response.json();
-                    console.log('发型推荐原始响应:', responseData);
-    
-                    // 更新到发型生成阶段
-                    updateProgress('HAIRSTYLE_GENERATION');
-    
-                    // 处理响应数据
-                    let hairstyles = [];
-                    if (responseData.code === 0 && responseData.data) {
-                        const parsedData = typeof responseData.data === 'string' 
-                            ? JSON.parse(responseData.data) 
-                            : responseData.data;
-                    
-                        if (Array.isArray(parsedData)) {
-                            hairstyles = parsedData;
-                        } else if (parsedData.output && Array.isArray(parsedData.output)) {
-                            hairstyles = parsedData.output;
-                        } else if (parsedData.hairstyles && Array.isArray(parsedData.hairstyles)) {
-                            hairstyles = parsedData.hairstyles;
+                        };
+                        console.log('发送发型推荐请求，参数:', JSON.stringify(requestPayload));
+                
+                        const response = await fetch('https://api.coze.cn/v1/workflow/run', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer pat_XCdzRC2c6K7oMcc2xVJv37KYJR311nrU8uUCPbdnAPlWKaDY9TikL2W8nnkW9cbY',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(requestPayload),
+                            // 增加超时时间到5分钟
+                            signal: AbortSignal.timeout(300000)
+                        });
+                
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            console.error('发型推荐API请求失败:', {
+                                status: response.status,
+                                statusText: response.statusText,
+                                error: errorData
+                            });
+                            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
                         }
+                
+                        const result = await response.json();
+                        console.log('发型推荐API响应:', result);
+                        
+                        // 验证并处理响应数据
+                        if (result.code !== 0) {
+                            console.error('发型推荐API返回错误码:', {
+                                code: result.code,
+                                message: result.msg
+                            });
+                            throw new Error(result.msg || '发型推荐API调用失败');
+                        }
+                
+                        try {
+                            console.log('开始解析发型推荐数据');
+                            const data = JSON.parse(result.data);
+                            console.log('解析后的发型推荐数据:', data);
+                            // 直接返回data.output，如果不存在则返回空数组
+                            return data?.output || [];
+                        } catch (parseError) {
+                            console.error('解析发型推荐数据失败:', {
+                                error: parseError,
+                                rawData: result.data
+                            });
+                            throw new Error('解析发型推荐数据失败');
+                        }
+                    } catch (error) {
+                        console.error('Hairstyle API request failed:', error);
+                        throw error;
                     }
-                    
-                    // 格式化发型数据
-                    const formattedHairstyles = hairstyles.map(style => ({
-                        hairstyle: typeof style === 'string' ? style : style.hairstyle || '推荐发型',
-                        reasons: style.reasons || '根据您的风格特点推荐此发型',
-                        img: style.img || ''
-                    }));
-                    
-                    return formattedHairstyles;
-                } catch (error) {
-                    console.error('获取发型推荐失败:', error);
-                    throw error;
-                } finally {
-                    setLoading(false);
-                }
-            };
+                };
             
-            // 并行获取两种搭配的发型推荐
-            const [customHairstyles, generatedHairstyles] = await Promise.all([
-                handleHairstyleRecommendation(data.custom.tryOnUrl),
-                handleHairstyleRecommendation(data.generated.tryOnUrl)
-            ]);
-
-            console.log('自选搭配发型:', customHairstyles); // 添加日志
-            console.log('AI推荐搭配发型:', generatedHairstyles); // 添加日志
-
-            // 修改数据设置逻辑
-            const processedCustomHairstyles = Array.isArray(customHairstyles) ? customHairstyles.map(style => ({
-                hairstyle: style.hairstyle || '推荐发型',
-                reasons: style.reasons || '适合您的个人风格',
-                img: style.img || ''
-            })).filter(style => style.img) : [];  // 确保只保留有图片的发型
-
-            const processedGeneratedHairstyles = Array.isArray(generatedHairstyles) ? generatedHairstyles.map(style => ({
-                hairstyle: style.hairstyle || '推荐发型',
-                reasons: style.reasons || '符合AI推荐的整体造型',
-                img: style.img || ''
-            })).filter(style => style.img) : [];  // 确保只保留有图片的发型
-
-            console.log('最终处理后的自选搭配发型:', processedCustomHairstyles);
-            console.log('最终处理后的AI推荐发型:', processedGeneratedHairstyles);
-
-            setHairstyles({
-                custom: processedCustomHairstyles,
-                generated: processedGeneratedHairstyles
-            });
-
-
-
-
-
-
-        } catch (error) {
-            if (error instanceof Error) {
-                if (error.name === 'AbortError') {
-                    console.log('Request cancelled');
-                    return;
+                // 串行处理两次请求
+                let customHairstyles = [];
+                let generatedHairstyles = [];
+            
+                // 第一次请求：使用自选搭配的虚拟换衣效果图获取发型推荐
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const responseData = await getHairstyleRecommendation(data.custom.tryOnUrl);
+                        console.log('成功获取自选搭配发型推荐:', responseData);
+                        customHairstyles = responseData;
+                        break;
+                    } catch (error) {
+                        console.error(`第${i + 1}次获取自选搭配发型推荐失败:`, error);
+                        if (i === maxRetries - 1) throw error;
+                        console.log(`等待${delay}ms后重试...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
                 }
-                console.error('Error:', error);
-                showError(error.message);
-            } else {
-                console.error('Unknown error:', error);
-                showError(t.error.general[language]);
+    
+                // 第二次请求：使用AI推荐搭配的虚拟换衣效果图获取发型推荐
+                updateProgress('HAIRSTYLE_GENERATION');
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const responseData = await getHairstyleRecommendation(data.generated.tryOnUrl);
+                        console.log('成功获取AI推荐搭配发型推荐:', responseData);
+                        generatedHairstyles = responseData;
+                        break;
+                    } catch (error) {
+                        console.error(`第${i + 1}次获取AI推荐搭配发型推荐失败:`, error);
+                        if (i === maxRetries - 1) throw error;
+                        console.log(`等待${delay}ms后重试...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                }
+    
+                // 更新发型状态
+                setHairstyles({
+                    custom: customHairstyles,
+                    generated: generatedHairstyles
+                });
+    
+                // 完成所有处理
+                updateProgress('COMPLETE');
+            } catch (error) {
+                console.error('发型推荐处理失败:', error);
+                showError(language === 'en' ? 'Failed to process hairstyle recommendations' : '发型推荐处理失败');
+                throw error; // 重新抛出错误以便外层catch捕获
             }
+        } catch (error) {
+            console.error('处理请求失败:', error);
+            showError(language === 'en' ? 'Failed to process request' : '处理请求失败');
         } finally {
             setLoading(false);
-            abortControllerRef.current = null;
         }
     };
 
+
+
+
+    const renderMeasurements = useCallback(() => (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+            {Object.entries(t.measurements).map(([key, label]) => (
+                <div key={key} className="space-y-2">
+                    <label htmlFor={key} className="block text-sm font-medium bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
+                        {label[language]}
+                    </label>
+                    <input
+                        type="number"
+                        id={key}
+                        name={key}
+                        value={formData[key]}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300"
+                        placeholder={label[language]}
+                        required
+                    />
+                </div>
+            ))}
+        </div>
+    ), [formData, handleInputChange, language]);
+
+    const renderStylePreference = useCallback(() => (
+        <div className="mb-6">
+            <label htmlFor="style_preference" className="block text-sm font-medium bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent mb-2">
+                {t.style[language]}
+            </label>
+            <select
+                id="style_preference"
+                name="style_preference"
+                value={formData.style_preference}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300"
+                required
+            >
+                {STYLE_PREFERENCES.map((style, index) => (
+                    <option key={index} value={style[language]}>
+                        {style[language]}
+                    </option>
+                ))}
+            </select>
+            <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-3 px-6 text-white font-semibold rounded-lg shadow-lg
+                    ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-orange-500 to-teal-500 hover:from-orange-600 hover:to-teal-600'}
+                    transform transition-all duration-200 hover:scale-105 active:scale-95
+                    flex items-center justify-center space-x-2`}
+            >
+                {loading ? (
+                    <>
+                        <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+                        <span>{t.button.generating[language]}</span>
+                    </>
+                ) : (
+                    <>
+                        <Sparkles className="w-5 h-5" />
+                        <span>{t.button.generate[language]}</span>
+                    </>
+                )}
+            </button>
+        </div>
+    ), [formData.style_preference, handleInputChange, language, loading]);
+
     const renderCustomHairstyles = useCallback(() => {
-        if (hairstyles.custom.length === 0) {
+        if (!hairstyles.custom || hairstyles.custom.length === 0) {
             return <p>{language === 'en' ? 'No hairstyle recommendations found for your selected outfit.' : '没有找到适合自选搭配的发型推荐。'}</p>;
         }
 
@@ -567,6 +615,10 @@ function App() {
                                 src={style.img}
                                 alt={style.hairstyle}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.currentTarget.src = 'fallback-image-url';
+                                    console.error('发型图片加载失败:', style.img);
+                                }}
                             />
                         </div>
                         <div className="space-y-2">
@@ -582,7 +634,7 @@ function App() {
     const renderGeneratedHairstyles = useCallback(() => {
         console.log('Generated hairstyles:', hairstyles.generated);
         
-        if (hairstyles.generated.length === 0) {
+        if (!hairstyles.generated || hairstyles.generated.length === 0) {
             return <p>{language === 'en' ? 'No hairstyle recommendations found for AI-generated outfit.' : '没有找到适合 AI 搭配的发型推荐。'}</p>;
         }
 
@@ -595,6 +647,10 @@ function App() {
                                 src={style.img}
                                 alt={style.hairstyle}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.currentTarget.src = 'fallback-image-url';
+                                    console.error('发型图片加载失败:', style.img);
+                                }}
                             />
                         </div>
                         <div className="space-y-2">
@@ -696,12 +752,19 @@ function App() {
                         </div>
                     </div>
                 </div>
-                {/* 评论区域 */}
+                {/* 评论区域 - 改为可折叠的条目 */}
                 <div className="grid gap-4">
                     {outfit.commentary.split('\n').filter(line => line.trim()).map((comment, index) => {
                         if (comment.includes('综合评分')) return null;
-                        const icons = [Sparkles, Palette, Scale, ThumbsUp, Check, Info];
-                        const Icon = icons[index % icons.length];
+                        const analysisTypes = [
+                            { icon: Sparkles, title: { en: 'Style Theme', zh: '穿搭主题' } },
+                            { icon: Palette, title: { en: 'Color Matching', zh: '色彩搭配' } },
+                            { icon: Scale, title: { en: 'Proportion', zh: '比例协调' } },
+                            { icon: ThumbsUp, title: { en: 'Overall Effect', zh: '整体效果' } },
+                            { icon: Check, title: { en: 'Style Positioning', zh: '风格定位' } },
+                            { icon: Info, title: { en: 'Style Advice', zh: '穿搭建议' } }
+                        ];
+                        const { icon: Icon, title } = analysisTypes[index % analysisTypes.length];
                         const animations = [
                             'hover:-translate-y-1',
                             'hover:scale-105',
@@ -711,29 +774,32 @@ function App() {
                             'hover:skew-y-3'
                         ];
                         return (
-                            <div
+                            <details
                                 key={index}
-                                className={`p-4 rounded-lg bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-sm shadow-lg border border-white/50 transition-all duration-300 ${animations[index % animations.length]}`}
+                                className={`group p-4 rounded-lg bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-sm shadow-lg border border-white/50 transition-all duration-300 ${animations[index % animations.length]}`}
                             >
-                                <div className="flex gap-3 items-start">
+                                <summary className="flex gap-3 items-center cursor-pointer">
                                     <div className="flex-shrink-0 p-2 bg-gradient-to-br from-orange-500/10 to-teal-500/10 rounded-lg">
                                         <Icon className="w-5 h-5 text-orange-500 animate-pulse" />
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-gray-700 leading-relaxed">
-                                            {comment}
-                                        </p>
-                                        {index === 0 && (
-                                            <div className="mt-2 flex items-center gap-2 text-xs text-orange-500">
-                                                <Crown className="w-3 h-3" />
-                                                <span>
-                                                    {language === 'en' ? 'AI Professional Review' : 'AI 专业点评'}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <span className="font-medium text-gray-700">
+                                        {title[language]}
+                                    </span>
+                                </summary>
+                                <div className="mt-4 pl-11">
+                                    <p className="text-gray-700 leading-relaxed">
+                                        {comment}
+                                    </p>
+                                    {index === 0 && (
+                                        <div className="mt-2 flex items-center gap-2 text-xs text-orange-500">
+                                            <Crown className="w-3 h-3" />
+                                            <span>
+                                                {language === 'en' ? 'AI Professional Review' : 'AI 专业点评'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                            </details>
                         );
                     })}
                 </div>
@@ -775,8 +841,23 @@ function App() {
     ), [language]);
 
     return (
-        <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-100 via-gray-50 to-teal-50 relative">
-            {renderLanguageSwitch()}
+        <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
+            <button
+                onClick={() => {
+                    setLanguage(prev => prev === 'zh' ? 'en' : 'zh');
+                    if (progress.stage in PROGRESS_STAGES) {
+                        setProgress(prev => ({
+                            ...prev,
+                            message: PROGRESS_STAGES[prev.stage][prev.language === 'en' ? 'zh' : 'en']
+                        }));
+                    }
+                }}
+                className="fixed top-4 right-4 z-50 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
+                <span className="text-sm font-medium bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
+                    {language === 'zh' ? 'English' : '中文'}
+                </span>
+            </button>
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute inset-0 bg-[url('/bg-pattern.svg')] opacity-5 animate-slide"></div>
                 <div className="absolute -inset-[100%] bg-gradient-conic from-orange-500/30 via-teal-500/30 to-orange-500/30 animate-spin-slow blur-3xl"></div>
@@ -848,137 +929,77 @@ function App() {
                             </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="mt-8 space-y-8">
-                            <div className="grid grid-cols-1 gap-8">
-                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                                    {renderUploadBox(
-                                        personPhoto,
-                                        setPersonPhoto,
-                                        t.upload.person,
-                                        t.upload.photo,
-                                        <Camera className="w-12 h-12 text-orange-400" />
-                                    )}
-                                    {renderUploadBox(
-                                        topGarment,
-                                        setTopGarment,
-                                        t.upload.top,
-                                        t.upload.top_text,
-                                        <Upload className="w-12 h-12 text-orange-400" />
-                                    )}
-                                    {renderUploadBox(
-                                        bottomGarment,
-                                        setBottomGarment,
-                                        t.upload.bottom,
-                                        t.upload.bottom_text,
-                                        <Upload className="w-12 h-12 text-orange-400" />
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        {Object.entries(t.measurements).slice(0, 3).map(([key, label]) => (
-                                            <div key={key} className="group">
-                                                <label className="block text-sm font-medium text-gray-700 group-hover:text-orange-600">
-                                                    {label[language]}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    name={key}
-                                                    value={formData[key as keyof FormData]}
-                                                    onChange={handleInputChange}
-                                                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm transition-colors"
-                                                    required
-                                                    min="1"
-                                                    step="0.1"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="space-y-4">
-                                        {Object.entries(t.measurements).slice(3).map(([key, label]) => (
-                                            <div key={key} className="group">
-                                                <label className="block text-sm font-medium text-gray-700 group-hover:text-orange-600">
-                                                    {label[language]}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    name={key}
-                                                    value={formData[key as keyof FormData]}
-                                                    onChange={handleInputChange}
-                                                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm transition-colors"
-                                                    required
-                                                    min="1"
-                                                    step="0.1"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="group">
-                                    <label className="block text-sm font-medium text-gray-700 group-hover:text-orange-600">
-                                        {t.style[language]}
-                                    </label>
-                                    <select
-                                        name="style_preference"
-                                        value={formData.style_preference}
-                                        onChange={handleInputChange}
-                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm transition-colors"
-                                    >
-                                        {STYLE_PREFERENCES.map((style) => (
-                                            <option key={style.zh} value={style.zh}>
-                                                {language === 'en' ? style.en : style.zh}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className={`w-full flex items-center justify-center py-3 px-4 rounded-lg text-sm font-semibold text-white transition-all duration-200 ${
-                                            loading
-                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                : 'bg-gradient-to-r from-orange-600 to-teal-600 hover:from-orange-500 hover:to-teal-500 transform hover:scale-[1.02]'
-                                        }`}
-                                    >
-                                        <Sparkles className={`w-5 h-5 mr-2 ${loading ? 'animate-spin' : 'animate-pulse'}`} />
-                                        {loading ? t.button.generating[language] : t.button.generate[language]}
-                                    </button>
-                                </div>
+                        <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto p-6 bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl">
+                            {renderUploadBox(
+                                personPhoto,
+                                setPersonPhoto,
+                                t.upload.person,
+                                t.upload.photo,
+                                <Camera className="w-8 h-8 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                            )}
+                            <div className="grid grid-cols-2 gap-4">
+                                {renderUploadBox(
+                                    topGarment,
+                                    setTopGarment,
+                                    t.upload.top,
+                                    t.upload.top_text,
+                                    <Upload className="w-8 h-8 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                                )}
+                                {renderUploadBox(
+                                    bottomGarment,
+                                    setBottomGarment,
+                                    t.upload.bottom,
+                                    t.upload.bottom_text,
+                                    <Upload className="w-8 h-8 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                                )}
                             </div>
-                        </form>
+                            {renderMeasurements()}
+                            {renderStylePreference()}
 
-                        {result && (
-                            <div className="mt-12 space-y-12">
-                                {/* 虚拟换衣结果 */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* 自选搭配结果 */}
-                                    {renderOutfitResult(result.custom, t.results.custom)}
-                                    {/* AI推荐搭配结果 */}
-                                    {renderOutfitResult(result.generated, t.results.generated)}
-                                </div>
-                                {/* 发型推荐部分保持不变 */}
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* 自选搭配发型 */}
-                                    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                                        <h3 className="text-xl font-semibold p-4 bg-gradient-to-r from-orange-600 to-teal-600 text-white">
-                                            {language === 'en' ? 'Recommended Hairstyles' : '推荐发型'}
-                                        </h3>
-                                        <div className="p-4">
-                                            {renderCustomHairstyles()}
+                            {/* 添加结果展示部分 */}
+                            {result && (
+                                <div className="mt-12 space-y-8">
+                                    <h2 className="text-2xl font-semibold text-center bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
+                                        {t.results.title[language]}
+                                    </h2>
+                                    <div className="grid grid-cols-12 gap-8">
+                                        <div className="col-span-12 md:col-span-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                {renderOutfitResult(result.custom, t.results.custom)}
+                                                {renderOutfitResult(result.generated, t.results.generated)}
+                                            </div>
+                                        </div>
+                                        <div className="col-span-12 md:col-span-4 space-y-8">
+                                            <div>
+                                                <h3 className="text-xl font-semibold mb-4">{language === 'en' ? 'For Your Selected Outfit' : '适配自选搭配'}</h3>
+                                                {renderCustomHairstyles()}
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xl font-semibold mb-4">{language === 'en' ? 'For AI Generated Outfit' : '适配AI推荐搭配'}</h3>
+                                                {renderGeneratedHairstyles()}
+                                            </div>
                                         </div>
                                     </div>
-                                    {/* AI推荐搭配发型 */}
-                                    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                                        <h3 className="text-xl font-semibold p-4 bg-gradient-to-r from-orange-600 to-teal-600 text-white">
-                                            {language === 'en' ? 'AI Recommended Hairstyles' : 'AI推荐发型'}
+                                </div>
+                            )}
+                        </form>
+                        {result && (
+                            <div className="mt-12 space-y-8">
+                                <h2 className="text-2xl font-semibold text-center bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
+                                    {language === 'en' ? 'Hairstyle Recommendations' : '发型推荐'}
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-gray-900">
+                                            {language === 'en' ? 'For Your Selected Outfit' : '适配自选搭配'}
                                         </h3>
-                                        <div className="p-4">
-                                            {renderGeneratedHairstyles()}
-                                        </div>
+                                        {renderCustomHairstyles()}
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-gray-900">
+                                            {language === 'en' ? 'For AI Generated Outfit' : '适配AI推荐搭配'}
+                                        </h3>
+                                        {renderGeneratedHairstyles()}
                                     </div>
                                 </div>
                             </div>
