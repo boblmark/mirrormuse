@@ -1,6 +1,20 @@
 
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+
+// 健康检查函数
+const checkBackendHealth = async () => {
+  try {
+    const response = await fetch('/api/health');
+    if (!response.ok) {
+      throw new Error('后端服务不可用');
+    }
+    return true;
+  } catch (error) {
+    console.error('健康检查失败:', error);
+    return false;
+  }
+};
 import { 
     Upload, 
     Camera, 
