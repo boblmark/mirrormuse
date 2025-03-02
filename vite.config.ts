@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiUrl = env.VITE_API_URL || 'http://localhost:3000';
+  const apiUrl = env.VITE_API_URL || (mode === 'production' ? 'https://mirrormuse.onrender.com' : 'http://localhost:3000');
   const isDev = mode === 'development';
 
   return {
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: !apiUrl.startsWith('http://localhost'),
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
+          rewrite: (path) => path.replace(/^/api/, ''),
           configure: (proxy) => {
             proxy.on('error', (err) => {
               console.error('代理服务器错误:', err);
