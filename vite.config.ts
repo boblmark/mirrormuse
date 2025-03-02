@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: !apiUrl.startsWith('http://localhost'),
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, '/'),
+          rewrite: (path) => path.replace(/^\/api/, ''),
           configure: (proxy) => {
             proxy.on('error', (err) => {
               console.error('代理服务器错误:', err);
