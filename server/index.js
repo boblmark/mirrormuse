@@ -6,34 +6,6 @@ import axios from 'axios';
 import COS from 'cos-nodejs-sdk-v5';
 import { v4 as uuidv4 } from 'uuid';
 
-// Configure axios with retry mechanism
-const axiosWithRetry = axios.create({
-  timeout: 60000, // 60 seconds timeout
-  maxContentLength: Infinity,
-  maxBodyLength: Infinity
-});
-
-axiosWithRetry.interceptors.response.use(null, async error => {
-  const { config } = error;
-  if (!config || !config.retry) {
-    return Promise.reject(error);
-  }
-  config._retryCount = config._retryCount || 0;
-  if (config._retryCount >= config.retry) {
-    return Promise.reject(error);
-  }
-  config._retryCount += 1;
-  const backoff = new Promise(resolve => {
-    setTimeout(() => resolve(), config.retryDelay || 1000);
-  });
-  await backoff;
-  return axiosWithRetry(config);
-});
-
-// Default retry configuration
-axiosWithRetry.defaults.retry = 3;
-axiosWithRetry.defaults.retryDelay = 3000;
-
 dotenv.config();
 
 const app = express();
@@ -43,7 +15,7 @@ const port = process.env.PORT || 3000;
 // 配置CORS策略
 app.use(cors({
   origin: [
-    'https://mirrormuse.vercel.app/', // Production frontend
+    'https://ai-fashion-stylist-web.onrender.com', // Production frontend
     'http://localhost:5173' // Local development frontend
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -128,7 +100,7 @@ async function callGLMForAnalysis(imageUrl, measurements) {
   try {
     const prompt = `分析用户的身体，皮肤特征，脸型和发型以及性别，基于以下身体数据推荐适合的上衣和下衣：身高 ${measurements.height}cm，体重 ${measurements.weight}kg，胸围 ${measurements.bust}cm，腰围 ${measurements.waist}cm，臀围 ${measurements.hips}cm。`;
     
-    const response = await axiosWithRetry.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    const response = await axios.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       model: 'glm-4v-plus',
       messages: [{
         role: 'user',
@@ -193,7 +165,7 @@ async function callGLMForCommentary(imageUrl) {
 
 请确保评价专业、具体、有建设性，并突出亮点。`;
     
-    const response = await axiosWithRetry.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    const response = await axios.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       model: 'glm-4v-plus',
       messages: [{
         role: 'user',
@@ -229,7 +201,7 @@ async function callGLMForCommentary(imageUrl) {
 // Generate clothing image using CogView
 async function generateClothingImage(prompt, style) {
   try {
-    const response = await axiosWithRetry.post('https://open.bigmodel.cn/api/paas/v4/images/generations', {
+    const response = await axios.post('https://open.bigmodel.cn/api/paas/v4/images/generations', {
       model: 'cogview-3-plus',
       prompt: `${prompt}（风格：${style}）`,
       size: '1024x1024',
@@ -255,7 +227,7 @@ async function generateClothingImage(prompt, style) {
 // Virtual try-on using Ali AI
 async function virtualTryOn(topUrl, bottomUrl, personUrl) {
   try {
-    const tryOnResponse = await axiosWithRetry.post('https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis/', {
+    const tryOnResponse = await axios.post('https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis/', {
       model: 'aitryon',
       input: {
         top_garment_url: topUrl,
@@ -279,7 +251,7 @@ async function virtualTryOn(topUrl, bottomUrl, personUrl) {
     // Poll task status
     let maxRetries = 12;
     while (maxRetries > 0) {
-      const taskResponse = await axiosWithRetry.get(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`, {
+      const taskResponse = await axios.get(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`, {
         headers: {
           'Authorization': `Bearer ${process.env.ALIAI_API_KEY}`
         }
@@ -292,7 +264,7 @@ async function virtualTryOn(topUrl, bottomUrl, personUrl) {
         throw new Error(taskResponse.data.message || 'Virtual try-on failed');
       }
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
       maxRetries--;
     }
 
@@ -324,35 +296,6 @@ function extractScore(commentary) {
 const apiRouter = express.Router();
 
 // Generate clothing recommendations route
-apiRouter.get('/generate-clothing', (req, res) => {
-  res.json({
-    message: '欢迎使用AI时尚造型师API',
-    endpoint: '/api/generate-clothing',
-    method: 'POST',
-    description: '基于用户照片和体型数据，生成个性化服装搭配推荐',
-    required_files: {
-      person_photo: '人物全身照片（JPG/PNG/WebP，最大5MB）',
-      custom_top_garment: '自选上装图片（JPG/PNG/WebP，最大5MB）',
-      custom_bottom_garment: '自选下装图片（JPG/PNG/WebP，最大5MB）'
-    },
-    required_measurements: {
-      height: '身高（cm）',
-      weight: '体重（kg）',
-      bust: '胸围（cm）',
-      waist: '腰围（cm）',
-      hips: '臀围（cm）',
-      style_preference: '风格偏好'
-    },
-    example_request: {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      body: 'FormData包含上述所有必需文件和测量数据'
-    }
-  });
-});
-
 apiRouter.post('/generate-clothing', (req, res) => {
   upload(req, res, async (err) => {
     try {
