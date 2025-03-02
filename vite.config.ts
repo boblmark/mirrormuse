@@ -18,12 +18,11 @@ export default defineConfig(({ mode }) => {
       host: true,
       proxy: {
         '/api': {
-          target: apiUrl,
+          target: apiUrl.replace(/\/$/, ''),  // 确保apiUrl末尾没有斜杠
           changeOrigin: true,
           secure: !apiUrl.startsWith('http://localhost'),
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-          pathRewrite: { '^/api': '' },
+          rewrite: (path) => path.replace(/^/api/, ''),
           configure: (proxy) => {
             proxy.on('error', (err) => {
               console.error('代理服务器错误:', err);
