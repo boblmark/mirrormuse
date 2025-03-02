@@ -358,8 +358,7 @@ function App() {
                 }
                 formDataToSend.append(key, value);
             });
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://mirrormuse.onrender.com';
-    const fullUrl = `${apiUrl}/api/generate-clothing`;
+    const fullUrl = 'https://mirrormuse.onrender.com/api/generate-clothing';
     // 开始上传文件
     updateProgress('UPLOAD');
     const response = await fetch(fullUrl, {
