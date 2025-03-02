@@ -8,7 +8,7 @@
       "use": "@vercel/node",
       "config": {
         "maxDuration": 300,
-        "serverTimeout": 180
+        "serverTimeout": 300
       }
     },
     {
@@ -26,7 +26,7 @@
       "dest": "server/index.js",
       "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
       "headers": {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "https://mirrormuse.vercel.app/",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
         "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Authorization"
       }
