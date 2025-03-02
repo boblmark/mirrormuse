@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: !apiUrl.startsWith('http://localhost'),
           ws: true,
-          rewrite: (path) => path.replace(/^/api/, ''),
+          rewrite: (path) => path.replace(/^\/api/, ''),
           headers: {
             'X-Forwarded-For': req => req.headers['x-forwarded-for'] || req.ip
           },
