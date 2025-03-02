@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
         changeOrigin: true,
         secure: true,
         ws: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        rewrite: (path) => path.replace(/^/api/, '/api'),
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
             console.log('proxy error', err);
@@ -59,4 +59,4 @@ export default defineConfig(({ mode }) => {
       }
     }
   }
-});;
+});
