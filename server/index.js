@@ -43,7 +43,7 @@ const port = process.env.PORT || 3000;
 // 配置CORS策略
 app.use(cors({
   origin: [
-    'https://ai-fashion-stylist-web.onrender.com', // Production frontend
+    'https://mirrormuse.vercel.app/', // Production frontend
     'http://localhost:5173' // Local development frontend
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
