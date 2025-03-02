@@ -296,6 +296,16 @@ function extractScore(commentary) {
 const apiRouter = express.Router();
 
 // Generate clothing recommendations route
+apiRouter.get('/generate-clothing', (req, res) => {
+  res.json({
+    message: 'Please use POST method for generating clothing recommendations',
+    required_fields: {
+      files: ['person_photo', 'custom_top_garment', 'custom_bottom_garment'],
+      measurements: ['height', 'weight', 'bust', 'waist', 'hips', 'style_preference']
+    }
+  });
+});
+
 apiRouter.post('/generate-clothing', (req, res) => {
   upload(req, res, async (err) => {
     try {
