@@ -4,11 +4,13 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiUrl = env.VITE_API_URL || 'http://localhost:3000';
+  const isDev = mode === 'development';
 
   return {
     plugins: [react()],
     optimizeDeps: {
-      exclude: ['lucide-react']
+      exclude: ['lucide-react'],
+      include: ['react-router-dom']
     },
     server: {
       port: 5173,
@@ -16,20 +18,23 @@ export default defineConfig(({ mode }) => {
       host: true,
       proxy: {
         '/api': {
-          target: process.env.VITE_API_URL || 'http://localhost:3000',
+          target: apiUrl,
           changeOrigin: true,
-          secure: true,
+          secure: !apiUrl.startsWith('http://localhost'),
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, '/api'),
-          configure: (proxy, _options) => {
+          rewrite: (path) => path.replace(/^\/api/, ''),
+          headers: {
+            'X-Forwarded-For': req => req.headers['x-forwarded-for'] || req.ip
+          },
+          configure: (proxy) => {
             proxy.on('error', (err, _req, _res) => {
-              console.log('proxy error', err);
+              console.error('代理服务器错误:', err);
             });
             proxy.on('proxyReq', (proxyReq, req, _res) => {
-              console.log('Sending Request:', req.method, req.url);
+              console.log(`发送请求: ${req.method} ${req.url}`);
             });
             proxy.on('proxyRes', (proxyRes, req, _res) => {
-              console.log('Received Response:', proxyRes.statusCode, req.url);
+              console.log(`收到响应: ${proxyRes.statusCode} ${req.url}`);
             });
           }
         }
@@ -37,24 +42,27 @@ export default defineConfig(({ mode }) => {
     },
     preview: {
       port: 5173,
-      host: true
+      host: true,
+      strictPort: true
     },
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      sourcemap: true,
+      sourcemap: isDev,
       minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: false,
-          drop_debugger: true
+          drop_console: !isDev,
+          drop_debugger: true,
+          pure_funcs: ['console.info']
         }
       },
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            ui: ['lucide-react']
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              return id.toString().split('node_modules/')[1].split('/')[0];
+            }
           }
         }
       }
