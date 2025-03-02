@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
             proxy.on('proxyRes', (proxyRes, req, _res) => {
               console.log(`收到响应: ${proxyRes.statusCode} ${req.url}`);
             });
-          }
+          },
         }
       }
     },
@@ -61,11 +61,11 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              return id.toString().split('node_modules/')[1].split('/')[0]
+              return id.toString().split('node_modules/')[1].split('/')[0];
             }
           }
         }
       }
     }
-  }
-};
+  };
+});
