@@ -1,20 +1,5 @@
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-
-// 健康检查函数
-const checkBackendHealth = async () => {
-  try {
-    const response = await fetch('https://mirrormuse.onrender.com/api/health');
-    if (!response.ok) {
-      throw new Error('后端服务不可用');
-    }
-    return true;
-  } catch (error) {
-    console.error('健康检查失败:', error);
-    return false;
-  }
-};
+import FashionBackground from './components/FashionBackground';
 import { 
     Upload, 
     Camera, 
@@ -31,10 +16,20 @@ import {
     Check,
     Info 
 } from 'lucide-react';
-import FashionBackground from './components/FashionBackground';
 
-// 补充类型定义
-// 在文件顶部统一类型定义
+const checkBackendHealth = async () => {
+  try {
+    const response = await fetch('https://mirrormuse.onrender.com/api/health');
+    if (!response.ok) {
+      throw new Error('后端服务不可用');
+    }
+    return true;
+  } catch (error) {
+    console.error('健康检查失败:', error);
+    return false;
+  }
+};
+
 interface UploadPreview {
     file: File;
     preview: string;
@@ -60,7 +55,7 @@ interface OutfitResult {
     tryOnUrl: string;
     commentary: string;
     score: number;
-    grading?: {  // 添加可选的 grading 属性
+    grading?: {
         overall: number;
         color: number;
         style: number;
@@ -78,6 +73,23 @@ interface ProgressState {
     stage: string;
     percent: number;
     message: string;
+}
+
+interface HairStyle {
+    hairstyle: string;
+    reasons: string;
+    img: string;
+}
+
+interface HairStyles {
+    custom: HairStyle[];
+    generated: HairStyle[];
+}
+
+interface Feature {
+    icon: 'Brain' | 'Wand' | 'Scissors' | 'Crown';
+    title: { en: string; zh: string };
+    desc: { en: string; zh: string };
 }
 
 const PROGRESS_STAGES = {
@@ -108,29 +120,10 @@ const STYLE_PREFERENCES = [
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-// 在现有的 interface 定义中添加
-interface HairStyle {
-    hairstyle: string;
-    reasons: string;
-    img: string;
-}
-
-interface HairStyles {
-    custom: HairStyle[];
-    generated: HairStyle[];
-}
-
-// 定义 feature 类型
-interface Feature {
-    icon: 'Brain' | 'Wand' | 'Scissors' | 'Crown';
-    title: { en: string; zh: string };
-    desc: { en: string; zh: string };
-}
-
 const t = {
     title: {
         en: 'MirrorMuse',
-        zh: '魅影衣橱'  // 保持原有名称
+        zh: '魅影衣橱'
     },
     subtitle: {
         en: 'AI Fashion Stylist',
@@ -170,7 +163,7 @@ const t = {
         fileSize: { en: 'File size must be less than 5MB', zh: '文件大小必须小于5MB' },
         fileType: { en: 'Only JPG, PNG and WebP images are allowed', zh: '仅支持JPG、PNG和WebP格式的图片' }
     },
-     features: {
+    features: {
         title: { en: 'Why Choose MirrorMuse?', zh: '为什么选择魅影衣橱？' },
         items: [
             {
@@ -345,7 +338,6 @@ function App() {
         updateProgress('UPLOAD');
     
         try {
-            // 处理服装搭配请求
             const formDataToSend = new FormData();
             formDataToSend.append('person_photo', personPhoto.file);
             formDataToSend.append('custom_top_garment', topGarment.file);
@@ -358,74 +350,61 @@ function App() {
                 }
                 formDataToSend.append(key, value);
             });
-    const fullUrl = 'https://mirrormuse.onrender.com/api/generate-clothing';
-    // 开始上传文件
-    updateProgress('UPLOAD');
-    const response = await fetch(fullUrl, {
-        method: 'POST',
-        body: formDataToSend,
-        signal: abortControllerRef.current.signal,
-        credentials: 'include',
-        mode: 'cors'
-    });
+
+            const fullUrl = 'https://mirrormuse.onrender.com/api/generate-clothing';
+            updateProgress('UPLOAD');
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                body: formDataToSend,
+                signal: abortControllerRef.current.signal,
+                credentials: 'include',
+                mode: 'cors'
+            });
     
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
                 throw new Error(errorData.error || `Server error: ${response.status}`);
             }
     
-            // 开始分析图片
             updateProgress('ANALYSIS');
             const data = await response.json();
             console.log('Received response:', data);
     
-            // 生成上衣
             updateProgress('GENERATE_TOP');
             await new Promise(resolve => setTimeout(resolve, 1000));
     
-            // 生成下装
             updateProgress('GENERATE_BOTTOM');
             await new Promise(resolve => setTimeout(resolve, 1000));
     
-            // 开始自选搭配虚拟换衣
             updateProgress('TRYON_CUSTOM');
             await new Promise(resolve => setTimeout(resolve, 1000));
     
-            // 开始AI推荐搭配虚拟换衣
             updateProgress('TRYON_GENERATED');
             await new Promise(resolve => setTimeout(resolve, 1000));
     
-            // 生成造型点评
             updateProgress('COMMENTARY');
             await new Promise(resolve => setTimeout(resolve, 1000));
     
             setResult(data);
 
-            // 处理发型推荐
             try {
-                // 开始发型分析
                 updateProgress('HAIRSTYLE_ANALYSIS');
                 
-                // 验证虚拟换衣结果是否存在
                 if (!data || !data.custom || !data.custom.tryOnUrl || !data.generated || !data.generated.tryOnUrl) {
                     throw new Error('Virtual try-on results not available');
                 }
                 
-                // 添加重试机制
                 const maxRetries = 3;
-                const delay = 2000; // 2秒延时
+                const delay = 2000;
                 
-                // 处理单个发型推荐请求
                 const getHairstyleRecommendation = async (imageUrl) => {
                     try {
                         console.log('开始发型推荐请求，输入图片URL:', imageUrl);
-                        // 确保图片URL有效
                         if (!imageUrl || typeof imageUrl !== 'string') {
                             console.error('无效的图片URL:', imageUrl);
                             throw new Error('Invalid image URL');
                         }
                 
-                        // 简化请求参数，只发送必要的数据
                         const requestPayload = {
                             workflow_id: '7472218638747467817',
                             parameters: {
@@ -441,7 +420,6 @@ function App() {
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(requestPayload),
-                            // 增加超时时间到5分钟
                             signal: AbortSignal.timeout(300000)
                         });
                 
@@ -458,7 +436,6 @@ function App() {
                         const result = await response.json();
                         console.log('发型推荐API响应:', result);
                         
-                        // 验证并处理响应数据
                         if (result.code !== 0) {
                             console.error('发型推荐API返回错误码:', {
                                 code: result.code,
@@ -471,7 +448,6 @@ function App() {
                             console.log('开始解析发型推荐数据');
                             const data = JSON.parse(result.data);
                             console.log('解析后的发型推荐数据:', data);
-                            // 直接返回data.output，如果不存在则返回空数组
                             return data?.output || [];
                         } catch (parseError) {
                             console.error('解析发型推荐数据失败:', {
@@ -486,11 +462,9 @@ function App() {
                     }
                 };
             
-                // 串行处理两次请求
                 let customHairstyles = [];
                 let generatedHairstyles = [];
             
-                // 第一次请求：使用自选搭配的虚拟换衣效果图获取发型推荐
                 for (let i = 0; i < maxRetries; i++) {
                     try {
                         const responseData = await getHairstyleRecommendation(data.custom.tryOnUrl);
@@ -506,7 +480,6 @@ function App() {
                     }
                 }
     
-                // 第二次请求：使用AI推荐搭配的虚拟换衣效果图获取发型推荐
                 updateProgress('HAIRSTYLE_GENERATION');
                 for (let i = 0; i < maxRetries; i++) {
                     try {
@@ -523,18 +496,16 @@ function App() {
                     }
                 }
     
-                // 更新发型状态
                 setHairstyles({
                     custom: customHairstyles,
                     generated: generatedHairstyles
                 });
     
-                // 完成所有处理
                 updateProgress('COMPLETE');
             } catch (error) {
                 console.error('发型推荐处理失败:', error);
                 showError(language === 'en' ? 'Failed to process hairstyle recommendations' : '发型推荐处理失败');
-                throw error; // 重新抛出错误以便外层catch捕获
+                throw error;
             }
         } catch (error) {
             console.error('处理请求失败:', error);
@@ -543,9 +514,6 @@ function App() {
             setLoading(false);
         }
     };
-
-
-
 
     const renderMeasurements = useCallback(() => (
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -708,7 +676,6 @@ function App() {
         </div>
     ), [language, handleFileChange]);
 
-    // 添加 renderOutfitResult 函数
     const renderOutfitResult = useCallback((
         outfit: OutfitResult,
         title: { en: string; zh: string }
@@ -727,7 +694,6 @@ function App() {
                 </h3>
             </div>
             <div className="p-4 space-y-6">
-                {/* 图片展示区域 */}
                 <div className="relative aspect-[3/4] rounded-xl overflow-hidden group">
                     <img
                         src={outfit.tryOnUrl}
@@ -737,7 +703,7 @@ function App() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
                         <div className="absolute bottom-4 left-4 right-4">
                             <div className="flex items-center gap-2 text-white">
-                                <Crown className="w-5 h-5 text-yellow-400 animate-pulse" />
+                                <Crown className="w-5 h-5 text-yellow- 400 animate-pulse" />
                                 <span className="font-medium">
                                     {language === 'en' ? 'Style Score' : '时尚评分'}
                                 </span>
@@ -762,7 +728,6 @@ function App() {
                         </div>
                     </div>
                 </div>
-                {/* 评论区域 - 改为可折叠的条目 */}
                 <div className="grid gap-4">
                     {outfit.commentary.split('\n').filter(line => line.trim()).map((comment, index) => {
                         if (comment.includes('综合评分')) return null;
@@ -838,18 +803,6 @@ function App() {
         );
     }, [loading, progress]);
 
-    // 添加语言切换按钮
-    const renderLanguageSwitch = useCallback(() => (
-        <button
-            onClick={() => setLanguage(prev => prev === 'zh' ? 'en' : 'zh')}
-            className="fixed top-4 right-4 z-50 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300 group"
-        >
-            <span className="text-sm font-medium bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
-                {language === 'zh' ? 'English' : '中文'}
-            </span>
-        </button>
-    ), [language]);
-
     return (
         <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
             <button
@@ -905,7 +858,6 @@ function App() {
                             </div>
                         </div>
 
-                        {/* 添加动态背景效果 */}
                         <div className="absolute inset-0 -z-10">
                             <div className="absolute inset-0 bg-gradient-to-br from-orange-100/40 via-purple-100/40 to-teal-100/40 animate-gradient-xy"></div>
                             <div className="absolute inset-0 opacity-30">
@@ -914,7 +866,6 @@ function App() {
                             </div>
                         </div>
 
-                        {/* 添加功能卡片部分 */}
                         <div className="mt-12 mb-8">
                             <h2 className="text-2xl font-semibold text-center mb-8 bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
                                 {t.features.title[language]}
@@ -966,7 +917,6 @@ function App() {
                             {renderMeasurements()}
                             {renderStylePreference()}
 
-                            {/* 添加结果展示部分 */}
                             {result && (
                                 <div className="mt-12 space-y-8">
                                     <h2 className="text-2xl font-semibold text-center bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
@@ -1017,6 +967,7 @@ function App() {
                     </div>
                 </div>
             </div>
+            <FashionBackground />
         </div>
     );
 }
