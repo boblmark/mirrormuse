@@ -21,11 +21,11 @@ const checkBackendHealth = async () => {
   try {
     const response = await fetch('https://mirrormuse.onrender.com/api/health');
     if (!response.ok) {
-      throw new Error('后端服务不可用');
+      throw new Error(t.error.serverError[language]);
     }
     return true;
   } catch (error) {
-    console.error('健康检查失败:', error);
+    console.error('Health check failed:', error);
     return false;
   }
 };
@@ -155,13 +155,25 @@ const t = {
         generated: { en: 'AI Recommended Outfit', zh: 'AI推荐' },
         analysis: { en: 'Style Analysis', zh: '造型分析' },
         commentary: { en: 'Expert Commentary', zh: '专业点评' },
-        score: { en: 'Style Score', zh: '时尚指数' }
+        score: { en: 'Style Score', zh: '时尚指数' },
+        hairstyle: {
+            title: { en: 'Hairstyle Recommendations', zh: '发型推荐' },
+            forCustom: { en: 'For Your Selected Outfit', zh: '适配自选搭配' },
+            forGenerated: { en: 'For AI Generated Outfit', zh: '适配AI推荐搭配' },
+            noRecommendations: { 
+                custom: { en: 'No hairstyle recommendations found for your selected outfit.', zh: '没有找到适合自选搭配的发型推荐。' },
+                generated: { en: 'No hairstyle recommendations found for AI-generated outfit.', zh: '没有找到适合 AI 搭配的发型推荐。' }
+            }
+        }
     },
     error: {
         upload: { en: 'Please upload all required images', zh: '请上传所有必要的图片' },
         general: { en: 'An error occurred', zh: '发生错误' },
         fileSize: { en: 'File size must be less than 5MB', zh: '文件大小必须小于5MB' },
-        fileType: { en: 'Only JPG, PNG and WebP images are allowed', zh: '仅支持JPG、PNG和WebP格式的图片' }
+        fileType: { en: 'Only JPG, PNG and WebP images are allowed', zh: '仅支持JPG、PNG和WebP格式的图片' },
+        serverError: { en: 'Server is unavailable', zh: '后端服务不可用' },
+        hairstyleProcess: { en: 'Failed to process hairstyle recommendations', zh: '发型推荐处理失败' },
+        requestProcess: { en: 'Failed to process request', zh: '处理请求失败' }
     },
     features: {
         title: { en: 'Why Choose MirrorMuse?', zh: '为什么选择魅影衣橱？' },
@@ -199,24 +211,33 @@ const t = {
                 }
             }
         ]
-    }
+    },
+    analysisTypes: [
+        { icon: Sparkles, title: { en: 'Style Theme', zh: '穿搭主题' } },
+        { icon: Palette, title: { en: 'Color Matching', zh: '色彩搭配' } },
+        { icon: Scale, title: { en: 'Proportion', zh: '比例协调' } },
+        { icon: ThumbsUp, title: { en: 'Overall Effect', zh: '整体效果' } },
+        { icon: Check, title: { en: 'Style Positioning', zh: '风格定位' } },
+        { icon: Info, title: { en: 'Style Advice', zh: '穿搭建议' } }
+    ],
+    aiReview: { en: 'AI Professional Review', zh: 'AI 专业点评' }
 };
 
 const FEATURES: Feature[] = t.features.items;
 
 const lucideIcons = {
-  Upload,
-  Camera,
-  Sparkles,
-  Star,
-  Palette,
-  TrendingUp,
-  ThumbsUp,
-  Scale,
-  Scissors,
-  Brain,
-  Wand,
-  Crown
+    Upload,
+    Camera,
+    Sparkles,
+    Star,
+    Palette,
+    TrendingUp,
+    ThumbsUp,
+    Scale,
+    Scissors,
+    Brain,
+    Wand,
+    Crown
 };
 
 function App() {
@@ -301,7 +322,7 @@ function App() {
             }
         } catch (err) {
             console.error('File upload error:', err);
-            showError(language === 'en' ? 'Failed to upload file' : '文件上传失败');
+            showError(t.error.upload[language]);
             event.target.value = '';
         }
     }, [language, validateFile, showError]);
@@ -316,10 +337,10 @@ function App() {
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        console.log('表单提交开始');
+        console.log('Form submission started');
     
         if (!personPhoto?.file || !topGarment?.file || !bottomGarment?.file) {
-            console.log('缺少必要的图片文件:', { 
+            console.log('Missing required files:', { 
                 personPhoto: !!personPhoto, 
                 topGarment: !!topGarment, 
                 bottomGarment: !!bottomGarment 
@@ -345,7 +366,7 @@ function App() {
     
             Object.entries(formData).forEach(([key, value]) => {
                 if (!value) {
-                    console.log('缺少必要的表单字段:', key);
+                    console.log('Missing required field:', key);
                     throw new Error('All measurements are required');
                 }
                 formDataToSend.append(key, value);
@@ -399,9 +420,9 @@ function App() {
                 
                 const getHairstyleRecommendation = async (imageUrl) => {
                     try {
-                        console.log('开始发型推荐请求，输入图片URL:', imageUrl);
+                        console.log('Starting hairstyle recommendation request, input image URL:', imageUrl);
                         if (!imageUrl || typeof imageUrl !== 'string') {
-                            console.error('无效的图片URL:', imageUrl);
+                            console.error('Invalid image URL:', imageUrl);
                             throw new Error('Invalid image URL');
                         }
                 
@@ -411,7 +432,7 @@ function App() {
                                 input_image: imageUrl.trim()
                             }
                         };
-                        console.log('发送发型推荐请求，参数:', JSON.stringify(requestPayload));
+                        console.log('Sending hairstyle recommendation request, parameters:', JSON.stringify(requestPayload));
                 
                         const response = await fetch('https://api.coze.cn/v1/workflow/run', {
                             method: 'POST',
@@ -425,7 +446,7 @@ function App() {
                 
                         if (!response.ok) {
                             const errorData = await response.json().catch(() => ({}));
-                            console.error('发型推荐API请求失败:', {
+                            console.error('Hairstyle recommendation API request failed:', {
                                 status: response.status,
                                 statusText: response.statusText,
                                 error: errorData
@@ -434,27 +455,27 @@ function App() {
                         }
                 
                         const result = await response.json();
-                        console.log('发型推荐API响应:', result);
+                        console.log('Hairstyle recommendation API response:', result);
                         
                         if (result.code !== 0) {
-                            console.error('发型推荐API返回错误码:', {
+                            console.error('Hairstyle recommendation API returned error code:', {
                                 code: result.code,
                                 message: result.msg
                             });
-                            throw new Error(result.msg || '发型推荐API调用失败');
+                            throw new Error(result.msg || 'Hairstyle recommendation API call failed');
                         }
                 
                         try {
-                            console.log('开始解析发型推荐数据');
+                            console.log('Parsing hairstyle recommendation data');
                             const data = JSON.parse(result.data);
-                            console.log('解析后的发型推荐数据:', data);
+                            console.log('Parsed hairstyle recommendation data:', data);
                             return data?.output || [];
                         } catch (parseError) {
-                            console.error('解析发型推荐数据失败:', {
+                            console.error('Failed to parse hairstyle recommendation data:', {
                                 error: parseError,
                                 rawData: result.data
                             });
-                            throw new Error('解析发型推荐数据失败');
+                            throw new Error('Failed to parse hairstyle recommendation data');
                         }
                     } catch (error) {
                         console.error('Hairstyle API request failed:', error);
@@ -468,13 +489,13 @@ function App() {
                 for (let i = 0; i < maxRetries; i++) {
                     try {
                         const responseData = await getHairstyleRecommendation(data.custom.tryOnUrl);
-                        console.log('成功获取自选搭配发型推荐:', responseData);
+                        console.log('Successfully got custom outfit hairstyle recommendations:', responseData);
                         customHairstyles = responseData;
                         break;
                     } catch (error) {
-                        console.error(`第${i + 1}次获取自选搭配发型推荐失败:`, error);
+                        console.error(`Attempt ${i + 1} to get custom outfit hairstyle recommendations failed:`, error);
                         if (i === maxRetries - 1) throw error;
-                        console.log(`等待${delay}ms后重试...`);
+                        console.log(`Waiting ${delay}ms before retry...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
@@ -484,13 +505,13 @@ function App() {
                 for (let i = 0; i < maxRetries; i++) {
                     try {
                         const responseData = await getHairstyleRecommendation(data.generated.tryOnUrl);
-                        console.log('成功获取AI推荐搭配发型推荐:', responseData);
+                        console.log('Successfully got AI recommended outfit hairstyle recommendations:', responseData);
                         generatedHairstyles = responseData;
                         break;
                     } catch (error) {
-                        console.error(`第${i + 1}次获取AI推荐搭配发型推荐失败:`, error);
+                        console.error(`Attempt ${i + 1} to get AI recommended outfit hairstyle recommendations failed:`, error);
                         if (i === maxRetries - 1) throw error;
-                        console.log(`等待${delay}ms后重试...`);
+                        console.log(`Waiting ${delay}ms before retry...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
@@ -503,13 +524,13 @@ function App() {
     
                 updateProgress('COMPLETE');
             } catch (error) {
-                console.error('发型推荐处理失败:', error);
-                showError(language === 'en' ? 'Failed to process hairstyle recommendations' : '发型推荐处理失败');
+                console.error('Hairstyle recommendation processing failed:', error);
+                showError(t.error.hairstyleProcess[language]);
                 throw error;
             }
         } catch (error) {
-            console.error('处理请求失败:', error);
-            showError(language === 'en' ? 'Failed to process request' : '处理请求失败');
+            console.error('Request processing failed:', error);
+            showError(t.error.requestProcess[language]);
         } finally {
             setLoading(false);
         }
@@ -581,7 +602,7 @@ function App() {
 
     const renderCustomHairstyles = useCallback(() => {
         if (!hairstyles.custom || hairstyles.custom.length === 0) {
-            return <p>{language === 'en' ? 'No hairstyle recommendations found for your selected outfit.' : '没有找到适合自选搭配的发型推荐。'}</p>;
+            return <p>{t.results.hairstyle.noRecommendations.custom[language]}</p>;
         }
 
         return (
@@ -595,7 +616,7 @@ function App() {
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                     e.currentTarget.src = 'fallback-image-url';
-                                    console.error('发型图片加载失败:', style.img);
+                                    console.error('Hairstyle image loading failed:', style.img);
                                 }}
                             />
                         </div>
@@ -613,7 +634,7 @@ function App() {
         console.log('Generated hairstyles:', hairstyles.generated);
         
         if (!hairstyles.generated || hairstyles.generated.length === 0) {
-            return <p>{language === 'en' ? 'No hairstyle recommendations found for AI-generated outfit.' : '没有找到适合 AI 搭配的发型推荐。'}</p>;
+            return <p>{t.results.hairstyle.noRecommendations.generated[language]}</p>;
         }
 
         return (
@@ -627,7 +648,7 @@ function App() {
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                     e.currentTarget.src = 'fallback-image-url';
-                                    console.error('发型图片加载失败:', style.img);
+                                    console.error('Hairstyle image loading failed:', style.img);
                                 }}
                             />
                         </div>
@@ -682,7 +703,7 @@ function App() {
     ) => (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl animate-fade-in">
             <div className="relative">
-                <h3 className="text-lg font-semibold p-4 bg-gradient-to-r from-orange-500 to-teal-500 text-white flex items-center justify-between">
+                <h3 className="text-lg font-semibold p- 4 bg-gradient-to-r from-orange-500 to-teal-500 text-white flex items-center justify-between">
                     <span className="flex items-center gap-2">
                         <Palette className="w-5 h-5 animate-pulse" />
                         {title[language]}
@@ -703,7 +724,7 @@ function App() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
                         <div className="absolute bottom-4 left-4 right-4">
                             <div className="flex items-center gap-2 text-white">
-                                <Crown className="w-5 h-5 text-yellow- 400 animate-pulse" />
+                                <Crown className="w-5 h-5 text-yellow-400 animate-pulse" />
                                 <span className="font-medium">
                                     {language === 'en' ? 'Style Score' : '时尚评分'}
                                 </span>
@@ -731,15 +752,8 @@ function App() {
                 <div className="grid gap-4">
                     {outfit.commentary.split('\n').filter(line => line.trim()).map((comment, index) => {
                         if (comment.includes('综合评分')) return null;
-                        const analysisTypes = [
-                            { icon: Sparkles, title: { en: 'Style Theme', zh: '穿搭主题' } },
-                            { icon: Palette, title: { en: 'Color Matching', zh: '色彩搭配' } },
-                            { icon: Scale, title: { en: 'Proportion', zh: '比例协调' } },
-                            { icon: ThumbsUp, title: { en: 'Overall Effect', zh: '整体效果' } },
-                            { icon: Check, title: { en: 'Style Positioning', zh: '风格定位' } },
-                            { icon: Info, title: { en: 'Style Advice', zh: '穿搭建议' } }
-                        ];
-                        const { icon: Icon, title } = analysisTypes[index % analysisTypes.length];
+                        const analysisType = t.analysisTypes[index % t.analysisTypes.length];
+                        const { icon: Icon, title } = analysisType;
                         const animations = [
                             'hover:-translate-y-1',
                             'hover:scale-105',
@@ -768,9 +782,7 @@ function App() {
                                     {index === 0 && (
                                         <div className="mt-2 flex items-center gap-2 text-xs text-orange-500">
                                             <Crown className="w-3 h-3" />
-                                            <span>
-                                                {language === 'en' ? 'AI Professional Review' : 'AI 专业点评'}
-                                            </span>
+                                            <span>{t.aiReview[language]}</span>
                                         </div>
                                     )}
                                 </div>
@@ -931,11 +943,11 @@ function App() {
                                         </div>
                                         <div className="col-span-12 md:col-span-4 space-y-8">
                                             <div>
-                                                <h3 className="text-xl font-semibold mb-4">{language === 'en' ? 'For Your Selected Outfit' : '适配自选搭配'}</h3>
+                                                <h3 className="text-xl font-semibold mb-4">{t.results.hairstyle.forCustom[language]}</h3>
                                                 {renderCustomHairstyles()}
                                             </div>
                                             <div>
-                                                <h3 className="text-xl font-semibold mb-4">{language === 'en' ? 'For AI Generated Outfit' : '适配AI推荐搭配'}</h3>
+                                                <h3 className="text-xl font-semibold mb-4">{t.results.hairstyle.forGenerated[language]}</h3>
                                                 {renderGeneratedHairstyles()}
                                             </div>
                                         </div>
@@ -946,18 +958,18 @@ function App() {
                         {result && (
                             <div className="mt-12 space-y-8">
                                 <h2 className="text-2xl font-semibold text-center bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
-                                    {language === 'en' ? 'Hairstyle Recommendations' : '发型推荐'}
+                                    {t.results.hairstyle.title[language]}
                                 </h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-4">
                                         <h3 className="text-lg font-semibold text-gray-900">
-                                            {language === 'en' ? 'For Your Selected Outfit' : '适配自选搭配'}
+                                            {t.results.hairstyle.forCustom[language]}
                                         </h3>
                                         {renderCustomHairstyles()}
                                     </div>
                                     <div className="space-y-4">
                                         <h3 className="text-lg font-semibold text-gray-900">
-                                            {language === 'en' ? 'For AI Generated Outfit' : '适配AI推荐搭配'}
+                                            {t.results.hairstyle.forGenerated[language]}
                                         </h3>
                                         {renderGeneratedHairstyles()}
                                     </div>
